@@ -8,21 +8,15 @@ import com.imooc.grocers.dal.ShopModelMapper;
 import com.imooc.grocers.model.CategoryModel;
 import com.imooc.grocers.model.SellerModel;
 import com.imooc.grocers.model.ShopModel;
+import com.imooc.grocers.recommend.RecommendService;
+import com.imooc.grocers.recommend.RecommendSortService;
 import com.imooc.grocers.service.CategoryService;
 import com.imooc.grocers.service.SellerService;
 import com.imooc.grocers.service.ShopService;
 import org.apache.http.util.EntityUtils;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Request;
-import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -30,7 +24,6 @@ import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -38,6 +31,12 @@ public class ShopServiceImpl implements ShopService {
 
     @Autowired
     private ShopModelMapper shopModelMapper;
+
+    @Autowired
+    private RecommendService recommendService;
+
+    @Autowired
+    private RecommendSortService recommendSortService;
 
     @Autowired
     private RestHighLevelClient highLevelClient;
@@ -104,7 +103,15 @@ public class ShopServiceImpl implements ShopService {
 
     @Override
     public List<ShopModel> recommend(BigDecimal latitude, BigDecimal longitude) {
-        return shopModelMapper.recommend(latitude, longitude);
+        List<Integer> shopIdList = recommendService.recall(148); //未登录用户可以获取默认useId的shopList
+        shopIdList = recommendSortService.sort(shopIdList, 148);
+        List<ShopModel> shopModelList = shopIdList.stream().map(id -> {
+            ShopModel shopModel = get(id);
+            shopModel.setIconUrl("/static/image/shopcover/xchg.jpg");
+            shopModel.setDistance(100);
+            return shopModel;
+        }).collect(Collectors.toList());
+        return shopModelList;
     }
 
     @Override
