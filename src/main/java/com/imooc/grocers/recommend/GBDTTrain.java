@@ -2,8 +2,8 @@ package com.imooc.grocers.recommend;
 
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
-import org.apache.spark.ml.classification.LogisticRegression;
-import org.apache.spark.ml.classification.LogisticRegressionModel;
+import org.apache.spark.ml.classification.GBTClassificationModel;
+import org.apache.spark.ml.classification.GBTClassifier;
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator;
 import org.apache.spark.ml.linalg.VectorUDT;
 import org.apache.spark.ml.linalg.Vectors;
@@ -18,7 +18,7 @@ import org.apache.spark.sql.types.StructType;
 
 import java.io.IOException;
 
-public class LRTrain {
+public class GBDTTrain {
     public static void main(String[] args) throws IOException {
         //初始化spark运行环境
         SparkSession spark = SparkSession.builder().master("local").appName("GrocersApp").getOrCreate();
@@ -35,17 +35,20 @@ public class LRTrain {
                 s = s.replace("\"", "");
                 String[] strArr = s.split(",");
                 //第一列为是否点击，第二列为十一维向量
+                //机器学习模型只能接受浮点型
                 return RowFactory.create(new Double(strArr[11]), Vectors.dense(Double.valueOf(strArr[0]),Double.valueOf(strArr[1]),
                         Double.valueOf(strArr[2]),Double.valueOf(strArr[3]),Double.valueOf(strArr[4]),Double.valueOf(strArr[5]),
                         Double.valueOf(strArr[6]),Double.valueOf(strArr[7]),Double.valueOf(strArr[8]),Double.valueOf(strArr[9]),Double.valueOf(10)));
             }
         });
 
+        //label:是否点击
         StructType schema = new StructType(new StructField[]{
                 new StructField("label", DataTypes.DoubleType, false, Metadata.empty()),
                 new StructField("features", new VectorUDT(), false, Metadata.empty())
         });
 
+        //将JavaRDD Row和schema关联起来，生成DataSet
         Dataset<Row> data = spark.createDataFrame(rowJavaRDD, schema);
 
         //80%数据用于训练, 20%数据用于测试
@@ -53,18 +56,16 @@ public class LRTrain {
         Dataset<Row> trainData = dataArr[0];
         Dataset<Row> testData = dataArr[1];
 
-        LogisticRegression lr = new LogisticRegression().setMaxIter(10).setRegParam(0.3).setElasticNetParam(0.8).setFamily("multinomial");
+        GBTClassifier classifier = new GBTClassifier().setLabelCol("label").setFeaturesCol("features").setMaxIter(10);
+        GBTClassificationModel gbtClassificationModel = classifier.train(trainData);
 
-        LogisticRegressionModel lrModel = lr.fit(trainData);
-
-        lrModel.save("file:///Users/yuhaolu/Documents/ElasticSearchSpark/devtool/data/lrmodel"); //可以把文件放到大数据平台或Redis中
+        gbtClassificationModel.save("file:///Users/yuhaolu/Documents/ElasticSearchSpark/devtool/data/gbdtmodel");
 
         //测试评估
-        Dataset<Row> predictions = lrModel.transform(testData);
+        Dataset<Row> predications = gbtClassificationModel.transform(testData);
 
         MulticlassClassificationEvaluator evaluator = new MulticlassClassificationEvaluator();
-        double accuracy = evaluator.setMetricName("accuracy").evaluate(predictions);
-
-        System.out.println("auc=" + accuracy);
+        double accuracy = evaluator.setMetricName("accuracy").evaluate(predications);
+        System.out.println("accuracy="+accuracy);
     }
 }
