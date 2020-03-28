@@ -103,15 +103,71 @@ public class ShopServiceImpl implements ShopService {
 
     @Override
     public List<ShopModel> recommend(BigDecimal latitude, BigDecimal longitude) {
-        List<Integer> shopIdList = recommendService.recall(148); //未登录用户可以获取默认useId的shopList
-        shopIdList = recommendSortService.sort(shopIdList, 148);
-        List<ShopModel> shopModelList = shopIdList.stream().map(id -> {
+        List<Integer> recallShopIdList = recommendService.recall(148); //未登录用户可以获取默认useId的shopList
+        List<Integer> LRShopIdList = recommendSortService.sort(recallShopIdList, 148, "LR");
+        List<Integer> GBDTShopIdList = recommendSortService.sort(recallShopIdList, 148, "GBDT");
+
+        List<ShopModel> LRShopModelList = LRShopIdList.stream().map(id -> {
             ShopModel shopModel = get(id);
             shopModel.setIconUrl("/static/image/shopcover/xchg.jpg");
             shopModel.setDistance(100);
+            shopModel.setOperator("LR");
             return shopModel;
         }).collect(Collectors.toList());
-        return shopModelList;
+
+        List<ShopModel> GBDTShopModelList = GBDTShopIdList.stream().map(id -> {
+            ShopModel shopModel = get(id);
+            shopModel.setIconUrl("/static/image/shopcover/xchg.jpg");
+            shopModel.setDistance(100);
+            shopModel.setOperator("GBDT");
+            return shopModel;
+        }).collect(Collectors.toList());
+
+        //固定输出6个
+        List<ShopModel> resultShopModelList = new ArrayList<>();
+
+        Queue<ShopModel> LRQueue = new ArrayDeque<>();
+        LRQueue.addAll(LRShopModelList);
+        Queue<ShopModel> GBDTQueue = new ArrayDeque<>();
+        GBDTQueue.addAll(GBDTShopModelList);
+
+        for (int i = 0; i < 6; i++) {
+            ShopModel addShopModel = null;
+            if (i % 2 == 0) {
+                //选取LR
+                addShopModel = LRQueue.poll();
+                boolean isRepeat = false;
+                for (int j = 0; j < resultShopModelList.size(); j++) {
+                    if (addShopModel.getId().equals(resultShopModelList.get(j).getId())) {
+                        isRepeat = true;
+                        break;
+                    }
+                }
+                if (isRepeat) {
+                    i--; //此时已经出队，只需重置i
+                    continue;
+                }
+            } else if (i % 2 == 1) {
+                //选取GBDT
+                addShopModel = GBDTQueue.poll();
+                boolean isRepeat = false;
+                for (int j = 0; j < resultShopModelList.size(); j++) {
+                    if (addShopModel.getId().equals(resultShopModelList.get(j).getId())) {
+                        isRepeat = true;
+                        break;
+                    }
+                }
+                if (isRepeat) {
+                    i--; //此时已经出队，只需重置i
+                    continue;
+                }
+            }
+            resultShopModelList.add(addShopModel);
+        }
+
+        //加入去重模块，因为两种模型可能会重复
+
+        return resultShopModelList;
     }
 
     @Override
@@ -134,45 +190,45 @@ public class ShopServiceImpl implements ShopService {
         //构建请求
         JSONObject jsonRequestObj = new JSONObject();
         //构建source部分
-        jsonRequestObj.put("_source","*");
+        jsonRequestObj.put("_source", "*");
 
         //构建自定义距离字段
-        jsonRequestObj.put("script_fields",new JSONObject());
-        jsonRequestObj.getJSONObject("script_fields").put("distance",new JSONObject());
-        jsonRequestObj.getJSONObject("script_fields").getJSONObject("distance").put("script",new JSONObject());
+        jsonRequestObj.put("script_fields", new JSONObject());
+        jsonRequestObj.getJSONObject("script_fields").put("distance", new JSONObject());
+        jsonRequestObj.getJSONObject("script_fields").getJSONObject("distance").put("script", new JSONObject());
         jsonRequestObj.getJSONObject("script_fields").getJSONObject("distance").getJSONObject("script")
-                .put("source","haversin(lat, lon, doc['location'].lat, doc['location'].lon)");
+                .put("source", "haversin(lat, lon, doc['location'].lat, doc['location'].lon)");
         jsonRequestObj.getJSONObject("script_fields").getJSONObject("distance").getJSONObject("script")
-                .put("lang","expression");
+                .put("lang", "expression");
         jsonRequestObj.getJSONObject("script_fields").getJSONObject("distance").getJSONObject("script")
-                .put("params",new JSONObject());
+                .put("params", new JSONObject());
         jsonRequestObj.getJSONObject("script_fields").getJSONObject("distance").getJSONObject("script")
-                .getJSONObject("params").put("lat",latitude);
+                .getJSONObject("params").put("lat", latitude);
         jsonRequestObj.getJSONObject("script_fields").getJSONObject("distance").getJSONObject("script")
-                .getJSONObject("params").put("lon",longitude);
+                .getJSONObject("params").put("lon", longitude);
 
         //构建query
-        Map<String,Object> cixingMap = analyzeCategoryKeyword(keyword);
+        Map<String, Object> cixingMap = analyzeCategoryKeyword(keyword);
         boolean isAffectFilter = false;
-        boolean isAffectOrder =  true;
-        jsonRequestObj.put("query",new JSONObject());
+        boolean isAffectOrder = true;
+        jsonRequestObj.put("query", new JSONObject());
 
 
         //构建function score
-        jsonRequestObj.getJSONObject("query").put("function_score",new JSONObject());
+        jsonRequestObj.getJSONObject("query").put("function_score", new JSONObject());
 
         //构建function score内的query
-        jsonRequestObj.getJSONObject("query").getJSONObject("function_score").put("query",new JSONObject());
-        jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").put("bool",new JSONObject());
-        jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool").put("must",new JSONArray());
+        jsonRequestObj.getJSONObject("query").getJSONObject("function_score").put("query", new JSONObject());
+        jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").put("bool", new JSONObject());
+        jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool").put("must", new JSONArray());
         jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
                 .getJSONArray("must").add(new JSONObject());
 
         //构建match query
         int queryIndex = 0;
-        if(cixingMap.keySet().size() > 0 && isAffectFilter){
+        if (cixingMap.keySet().size() > 0 && isAffectFilter) {
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
-                    .getJSONArray("must").getJSONObject(queryIndex).put("bool",new JSONObject());
+                    .getJSONArray("must").getJSONObject(queryIndex).put("bool", new JSONObject());
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
                     .getJSONArray("must").getJSONObject(queryIndex).getJSONObject("bool").put("should", new JSONArray());
             int filterQueryIndex = 0;
@@ -180,18 +236,18 @@ public class ShopServiceImpl implements ShopService {
                     .getJSONArray("must").getJSONObject(queryIndex).getJSONObject("bool").getJSONArray("should").add(new JSONObject());
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
                     .getJSONArray("must").getJSONObject(queryIndex).getJSONObject("bool").getJSONArray("should").getJSONObject(filterQueryIndex)
-                    .put("match",new JSONObject());
+                    .put("match", new JSONObject());
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
                     .getJSONArray("must").getJSONObject(queryIndex).getJSONObject("bool").getJSONArray("should").getJSONObject(filterQueryIndex)
-                    .getJSONObject("match").put("name",new JSONObject());
+                    .getJSONObject("match").put("name", new JSONObject());
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
                     .getJSONArray("must").getJSONObject(queryIndex).getJSONObject("bool").getJSONArray("should").getJSONObject(filterQueryIndex)
-                    .getJSONObject("match").getJSONObject("name").put("query",keyword);
+                    .getJSONObject("match").getJSONObject("name").put("query", keyword);
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
                     .getJSONArray("must").getJSONObject(queryIndex).getJSONObject("bool").getJSONArray("should").getJSONObject(filterQueryIndex)
-                    .getJSONObject("match").getJSONObject("name").put("boost",0.1);
+                    .getJSONObject("match").getJSONObject("name").put("boost", 0.1);
 
-            for(String key : cixingMap.keySet()) {
+            for (String key : cixingMap.keySet()) {
                 //通过key来拿个category作为filter
                 filterQueryIndex++;
                 Integer cixingCategoryId = (Integer) cixingMap.get(key);
@@ -212,15 +268,15 @@ public class ShopServiceImpl implements ShopService {
             }
 
 
-        }else{
+        } else {
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
-                    .getJSONArray("must").getJSONObject(queryIndex).put("match",new JSONObject());
+                    .getJSONArray("must").getJSONObject(queryIndex).put("match", new JSONObject());
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
                     .getJSONArray("must").getJSONObject(queryIndex).getJSONObject("match").put("name", new JSONObject());
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
-                    .getJSONArray("must").getJSONObject(queryIndex).getJSONObject("match").getJSONObject("name").put("query",keyword);
+                    .getJSONArray("must").getJSONObject(queryIndex).getJSONObject("match").getJSONObject("name").put("query", keyword);
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
-                    .getJSONArray("must").getJSONObject(queryIndex).getJSONObject("match").getJSONObject("name").put("boost",0.1);
+                    .getJSONArray("must").getJSONObject(queryIndex).getJSONObject("match").getJSONObject("name").put("boost", 0.1);
 
         }
 
@@ -229,37 +285,37 @@ public class ShopServiceImpl implements ShopService {
         jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
                 .getJSONArray("must").add(new JSONObject());
         jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
-                .getJSONArray("must").getJSONObject(queryIndex).put("term",new JSONObject());
+                .getJSONArray("must").getJSONObject(queryIndex).put("term", new JSONObject());
         jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
-                .getJSONArray("must").getJSONObject(queryIndex).getJSONObject("term").put("seller_disabled_flag",0);
+                .getJSONArray("must").getJSONObject(queryIndex).getJSONObject("term").put("seller_disabled_flag", 0);
 
-        if(tags != null){
+        if (tags != null) {
             queryIndex++;
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
                     .getJSONArray("must").add(new JSONObject());
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
-                    .getJSONArray("must").getJSONObject(queryIndex).put("term",new JSONObject());
+                    .getJSONArray("must").getJSONObject(queryIndex).put("term", new JSONObject());
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
-                    .getJSONArray("must").getJSONObject(queryIndex).getJSONObject("term").put("tags",tags);
+                    .getJSONArray("must").getJSONObject(queryIndex).getJSONObject("term").put("tags", tags);
         }
 
         //前端是否传入categoryId
-        if(categoryId != null){
+        if (categoryId != null) {
             queryIndex++;
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
                     .getJSONArray("must").add(new JSONObject());
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
-                    .getJSONArray("must").getJSONObject(queryIndex).put("term",new JSONObject());
+                    .getJSONArray("must").getJSONObject(queryIndex).put("term", new JSONObject());
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONObject("query").getJSONObject("bool")
-                    .getJSONArray("must").getJSONObject(queryIndex).getJSONObject("term").put("category_id",categoryId);
+                    .getJSONArray("must").getJSONObject(queryIndex).getJSONObject("term").put("category_id", categoryId);
         }
 
 
         //构建functions部分
-        jsonRequestObj.getJSONObject("query").getJSONObject("function_score").put("functions",new JSONArray());
+        jsonRequestObj.getJSONObject("query").getJSONObject("function_score").put("functions", new JSONArray());
 
         int functionIndex = 0;
-        if(orderby == null) {
+        if (orderby == null) {
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONArray("functions").add(new JSONObject());
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONArray("functions").getJSONObject(functionIndex).put("gauss", new JSONObject());
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONArray("functions").getJSONObject(functionIndex).getJSONObject("gauss").put("location", new JSONObject());
@@ -287,48 +343,48 @@ public class ShopServiceImpl implements ShopService {
                     .put("field", "seller_remark_score");
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONArray("functions").getJSONObject(functionIndex).put("weight", 0.1);
 
-            if(cixingMap.keySet().size() > 0 && isAffectOrder){
-                for(String key : cixingMap.keySet()){
+            if (cixingMap.keySet().size() > 0 && isAffectOrder) {
+                for (String key : cixingMap.keySet()) {
                     functionIndex++;
                     jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONArray("functions").add(new JSONObject());
-                    jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONArray("functions").getJSONObject(functionIndex).put("filter",new JSONObject());
+                    jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONArray("functions").getJSONObject(functionIndex).put("filter", new JSONObject());
                     jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONArray("functions").getJSONObject(functionIndex).getJSONObject("filter")
-                            .put("term",new JSONObject());
+                            .put("term", new JSONObject());
                     jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONArray("functions").getJSONObject(functionIndex).getJSONObject("filter")
-                            .getJSONObject("term").put("category_id",cixingMap.get(key));
-                    jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONArray("functions").getJSONObject(functionIndex).put("weight",3);
+                            .getJSONObject("term").put("category_id", cixingMap.get(key));
+                    jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONArray("functions").getJSONObject(functionIndex).put("weight", 3);
 
                 }
 
             }
 
-            jsonRequestObj.getJSONObject("query").getJSONObject("function_score").put("score_mode","sum");
-            jsonRequestObj.getJSONObject("query").getJSONObject("function_score").put("boost_mode","sum");
-        }else{
+            jsonRequestObj.getJSONObject("query").getJSONObject("function_score").put("score_mode", "sum");
+            jsonRequestObj.getJSONObject("query").getJSONObject("function_score").put("boost_mode", "sum");
+        } else {
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONArray("functions").add(new JSONObject());
-            jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONArray("functions").getJSONObject(functionIndex).put("field_value_factor",new JSONObject());
+            jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONArray("functions").getJSONObject(functionIndex).put("field_value_factor", new JSONObject());
             jsonRequestObj.getJSONObject("query").getJSONObject("function_score").getJSONArray("functions").getJSONObject(functionIndex).getJSONObject("field_value_factor")
-                    .put("field","price_per_man");
+                    .put("field", "price_per_man");
 
-            jsonRequestObj.getJSONObject("query").getJSONObject("function_score").put("score_mode","sum");
-            jsonRequestObj.getJSONObject("query").getJSONObject("function_score").put("boost_mode","replace");
+            jsonRequestObj.getJSONObject("query").getJSONObject("function_score").put("score_mode", "sum");
+            jsonRequestObj.getJSONObject("query").getJSONObject("function_score").put("boost_mode", "replace");
         }
 
         //排序字段
-        jsonRequestObj.put("sort",new JSONArray());
+        jsonRequestObj.put("sort", new JSONArray());
         jsonRequestObj.getJSONArray("sort").add(new JSONObject());
-        jsonRequestObj.getJSONArray("sort").getJSONObject(0).put("_score",new JSONObject());
-        if(orderby == null){
-            jsonRequestObj.getJSONArray("sort").getJSONObject(0).getJSONObject("_score").put("order","desc");
-        }else{
-            jsonRequestObj.getJSONArray("sort").getJSONObject(0).getJSONObject("_score").put("order","asc");
+        jsonRequestObj.getJSONArray("sort").getJSONObject(0).put("_score", new JSONObject());
+        if (orderby == null) {
+            jsonRequestObj.getJSONArray("sort").getJSONObject(0).getJSONObject("_score").put("order", "desc");
+        } else {
+            jsonRequestObj.getJSONArray("sort").getJSONObject(0).getJSONObject("_score").put("order", "asc");
         }
 
         //聚合字段
-        jsonRequestObj.put("aggs",new JSONObject());
-        jsonRequestObj.getJSONObject("aggs").put("group_by_tags",new JSONObject());
-        jsonRequestObj.getJSONObject("aggs").getJSONObject("group_by_tags").put("terms",new JSONObject());
-        jsonRequestObj.getJSONObject("aggs").getJSONObject("group_by_tags").getJSONObject("terms").put("field","tags");
+        jsonRequestObj.put("aggs", new JSONObject());
+        jsonRequestObj.getJSONObject("aggs").put("group_by_tags", new JSONObject());
+        jsonRequestObj.getJSONObject("aggs").getJSONObject("group_by_tags").put("terms", new JSONObject());
+        jsonRequestObj.getJSONObject("aggs").getJSONObject("group_by_tags").getJSONObject("terms").put("field", "tags");
 
         String reqJson = jsonRequestObj.toJSONString();
 
@@ -354,33 +410,33 @@ public class ShopServiceImpl implements ShopService {
 
         List<Map> tagsList = new ArrayList<>();
         JSONArray tagsJsonArray = jsonObject.getJSONObject("aggregations").getJSONObject("group_by_tags").getJSONArray("buckets");
-        for(int i = 0; i < tagsJsonArray.size();i++){
+        for (int i = 0; i < tagsJsonArray.size(); i++) {
             JSONObject jsonObj = tagsJsonArray.getJSONObject(i);
-            Map<String,Object> tagMap = new HashMap<>();
-            tagMap.put("tags",jsonObj.getString("key"));
-            tagMap.put("num",jsonObj.getInteger("doc_count"));
+            Map<String, Object> tagMap = new HashMap<>();
+            tagMap.put("tags", jsonObj.getString("key"));
+            tagMap.put("num", jsonObj.getInteger("doc_count"));
             tagsList.add(tagMap);
         }
-        result.put("tags",tagsList);
+        result.put("tags", tagsList);
 
         return result;
     }
 
     //构造分词函数识别器
-    private Map<String,Object> analyzeCategoryKeyword(String keyword) throws IOException {
-        Map<String,Object> res = new HashMap<>();
+    private Map<String, Object> analyzeCategoryKeyword(String keyword) throws IOException {
+        Map<String, Object> res = new HashMap<>();
 
-        Request request = new Request("GET","/shop/_analyze");
-        request.setJsonEntity("{" + "  \"field\": \"name\"," + "  \"text\":\""+keyword+"\"\n" + "}");
+        Request request = new Request("GET", "/shop/_analyze");
+        request.setJsonEntity("{" + "  \"field\": \"name\"," + "  \"text\":\"" + keyword + "\"\n" + "}");
         Response response = highLevelClient.getLowLevelClient().performRequest(request);
         String responseStr = EntityUtils.toString(response.getEntity());
         JSONObject jsonObject = JSONObject.parseObject(responseStr);
         JSONArray jsonArray = jsonObject.getJSONArray("tokens");
-        for(int i = 0; i < jsonArray.size(); i++){
+        for (int i = 0; i < jsonArray.size(); i++) {
             String token = jsonArray.getJSONObject(i).getString("token");
             Integer categoryId = getCategoryIdByToken(token);
-            if(categoryId != null){
-                res.put(token,categoryId);
+            if (categoryId != null) {
+                res.put(token, categoryId);
             }
         }
 
@@ -388,22 +444,22 @@ public class ShopServiceImpl implements ShopService {
     }
 
 
-    private Integer getCategoryIdByToken(String token){
-        for(Integer key : categoryWorkMap.keySet()){
+    private Integer getCategoryIdByToken(String token) {
+        for (Integer key : categoryWorkMap.keySet()) {
             List<String> tokenList = categoryWorkMap.get(key);
-            if(tokenList.contains(token)){
+            if (tokenList.contains(token)) {
                 return key;
             }
         }
         return null;
     }
 
-    private Map<Integer,List<String>> categoryWorkMap = new HashMap<>();
+    private Map<Integer, List<String>> categoryWorkMap = new HashMap<>();
 
     @PostConstruct
-    public void init(){
-        categoryWorkMap.put(1,new ArrayList<>());
-        categoryWorkMap.put(2,new ArrayList<>());
+    public void init() {
+        categoryWorkMap.put(1, new ArrayList<>());
+        categoryWorkMap.put(2, new ArrayList<>());
 
         categoryWorkMap.get(1).add("吃饭");
         categoryWorkMap.get(1).add("下午茶");
