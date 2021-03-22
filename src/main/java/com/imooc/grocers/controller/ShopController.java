@@ -31,32 +31,19 @@ public class ShopController {
     @Autowired
     private CategoryService categoryService;
 
-    //推荐服务V1.0
-    @RequestMapping("/recommend")
-    @ResponseBody
-    public CommonResult recommend(@RequestParam(value = "longitude") BigDecimal longitude,
-                                  @RequestParam(value = "latitude") BigDecimal latitude) throws BusinessException {
-        if (Objects.isNull(latitude) || Objects.isNull(longitude)) {
-            throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR);
-        }
-        List<ShopModel> shopModelList = shopService.recommend(latitude, longitude);
-        return CommonResult.create(shopModelList);
-    }
-
-    //搜索服务V1.0
     @RequestMapping("/search")
     @ResponseBody
     public CommonResult search(@RequestParam(value = "longitude") BigDecimal longitude,
                                @RequestParam(value = "latitude") BigDecimal latitude,
                                @RequestParam(value = "keyword") String keyword,
-                               @RequestParam(value = "orderby", required = false) Integer orderby,
+                               @RequestParam(value = "orderBy", required = false) Integer orderBy,
                                @RequestParam(value = "categoryId", required = false) Integer categoryId,
                                @RequestParam(value = "tags", required = false) String tags) throws BusinessException, IOException {
         if (Objects.isNull(latitude) || Objects.isNull(longitude) || StringUtils.isEmpty(keyword)) {
             throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR);
         }
 
-        Map<String, Object> result = shopService.searchES(longitude, latitude, keyword, orderby, categoryId, tags);
+        Map<String, Object> result = shopService.searchES(longitude, latitude, keyword, orderBy, categoryId, tags);
         List<ShopModel> shopModelList = (List<ShopModel>) result.get("shop");
         List<Map<String,Object>> tagsAggregation = (List<Map<String, Object>>) result.get("tags");
         List<CategoryModel> categoryModelList = categoryService.selectAll();

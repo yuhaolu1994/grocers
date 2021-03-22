@@ -5,7 +5,6 @@ import com.imooc.grocers.model.ShopModel;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Map;
 
 public interface ShopService {
@@ -14,16 +13,6 @@ public interface ShopService {
 
     ShopModel get(Integer id);
 
-    List<ShopModel> selectAll();
-
-    List<Map<String, Object>> searchGroupByTags(String keyword, Integer categoryId, String tags);
-
-    Integer countAllShop();
-
-    List<ShopModel> recommend(BigDecimal latitude, BigDecimal longitude);
-
-    List<ShopModel> search(BigDecimal latitude, BigDecimal longitude, String keyword, Integer orderby, Integer categoryId, String tags);
-
-    Map<String, Object> searchES(BigDecimal latitude, BigDecimal longitude, String keyword, Integer orderby, Integer categoryId, String tags) throws IOException;
+    Map<String, Object> searchES(BigDecimal latitude, BigDecimal longitude, String keyword, Integer orderBy, Integer categoryId, String tags) throws IOException;
 
 }

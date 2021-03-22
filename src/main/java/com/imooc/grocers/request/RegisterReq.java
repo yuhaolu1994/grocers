@@ -10,16 +10,16 @@ import javax.validation.constraints.NotNull;
 @Setter
 public class RegisterReq {
 
-    @NotBlank(message = "手机号不能为空")
+    @NotBlank(message = "empty telephone found")
     private String telephone;
 
-    @NotBlank(message = "密码不能为空")
+    @NotBlank(message = "empty password found")
     private String password;
 
-    @NotBlank(message = "昵称不能为空")
+    @NotBlank(message = "empty nickName found")
     private String nickName;
 
-    @NotNull(message = "性别不能为空")
+    @NotNull(message = "empty gender found")
     private Integer gender;
 
 }

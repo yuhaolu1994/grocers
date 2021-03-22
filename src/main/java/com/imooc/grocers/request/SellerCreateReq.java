@@ -9,7 +9,7 @@ import javax.validation.constraints.NotBlank;
 @Setter
 public class SellerCreateReq {
 
-    @NotBlank(message = "商户名不能为空")
+    @NotBlank(message = "empty seller name found")
     private String name;
 
 }
