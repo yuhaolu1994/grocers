@@ -27,28 +27,23 @@ public class ControllerAspect {
     public Object adminControllerBeforeValidation(ProceedingJoinPoint joinPoint) throws Throwable {
         Method method = ((MethodSignature) joinPoint.getSignature()).getMethod();
         AdminPermission adminPermission = method.getAnnotation(AdminPermission.class);
+
         if (Objects.isNull(adminPermission)) {
-            //公共方法
-            Object resultObject = joinPoint.proceed();
-            return resultObject;
+            return joinPoint.proceed();
         }
-        //判断当前管理员是否登录
+
         String email = (String) httpServletRequest.getSession().getAttribute(AdminController.CURRENT_ADMIN_SESSION);
+
         if (Objects.isNull(email)) {
-            //未登录
             if ("text/html".equals(adminPermission.produceType())) {
-                //Controller返回值为ModelAndView
                 httpServletResponse.sendRedirect("/admin/admin/loginpage");
                 return null;
             } else {
-                //Controller返回值为ResponseBody json
                 CommonError commonError = new CommonError(EmBusinessError.ADMIN_SHOULD_LOGIN);
                 return CommonResult.create(commonError, "fail");
             }
         } else {
-            //已登录
-            Object resultObject = joinPoint.proceed();
-            return resultObject;
+            return joinPoint.proceed();
         }
     }
 

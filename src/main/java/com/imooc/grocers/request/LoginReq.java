@@ -9,10 +9,10 @@ import javax.validation.constraints.NotBlank;
 @Setter
 public class LoginReq {
 
-    @NotBlank(message = "手机号不能为空")
+    @NotBlank(message = "empty phone num found")
     private String telephone;
 
-    @NotBlank(message = "密码不能为空")
+    @NotBlank(message = "empty password found")
     private String password;
 
 }

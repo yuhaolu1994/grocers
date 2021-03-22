@@ -1,12 +1,8 @@
 package com.imooc.grocers.controller.admin;
 
-import com.imooc.grocers.common.AdminPermission;
 import com.imooc.grocers.common.BusinessException;
+import com.imooc.grocers.common.CommonResult;
 import com.imooc.grocers.common.EmBusinessError;
-import com.imooc.grocers.service.CategoryService;
-import com.imooc.grocers.service.SellerService;
-import com.imooc.grocers.service.ShopService;
-import com.imooc.grocers.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
@@ -14,7 +10,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.bind.annotation.ResponseBody;
 import sun.misc.BASE64Encoder;
 
 import javax.servlet.http.HttpServletRequest;
@@ -35,59 +31,27 @@ public class AdminController {
     @Autowired
     private HttpServletRequest httpServletRequest;
 
-    @Autowired
-    private UserService userService;
-
-    @Autowired
-    private CategoryService categoryService;
-
-    @Autowired
-    private ShopService shopService;
-
-    @Autowired
-    private SellerService sellerService;
-
     public static final String CURRENT_ADMIN_SESSION = "currentAdminSession";
 
-    @RequestMapping("/index")
-    @AdminPermission
-    public ModelAndView index() {
-        ModelAndView modelAndView = new ModelAndView("/admin/admin/index");
-        //对应index.html配置
-        modelAndView.addObject("userCount", userService.countAllUser());
-        modelAndView.addObject("shopCount", shopService.countAllShop());
-        modelAndView.addObject("categoryCount", categoryService.countAllCategory());
-        modelAndView.addObject("sellerCount", sellerService.countAllSeller());
-        //对应sidebar.html配置
-        modelAndView.addObject("CONTROLLER_NAME", "admin");
-        modelAndView.addObject("ACTION_NAME", "index");
-        return modelAndView;
-    }
-
-    @RequestMapping("/loginpage")
-    public ModelAndView loginpage() {
-        ModelAndView modelAndView = new ModelAndView("/admin/admin/login");
-        return modelAndView;
-    }
-
     @RequestMapping(value = "/login", method = RequestMethod.POST)
-    public String login(@RequestParam(name = "email") String email,
+    @ResponseBody
+    public CommonResult login(@RequestParam(name = "email") String email,
                               @RequestParam(name = "password") String password) throws BusinessException, UnsupportedEncodingException, NoSuchAlgorithmException {
         if (StringUtils.isEmpty(email) || StringUtils.isEmpty(password)) {
-            throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR, "用户名密码不能为空");
+            throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR, "Empty email or password found");
         }
         if (email.equals(this.email) && encodeByMd5(password).equals(this.encryptPassword)) {
             httpServletRequest.getSession().setAttribute(CURRENT_ADMIN_SESSION, email);
-            return "redirect:/admin/admin/index";
+            return CommonResult.create(email);
         } else {
-            throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR, "用户名密码错误");
+            throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR, "Invalid email or password found");
         }
     }
 
     private String encodeByMd5(String str) throws NoSuchAlgorithmException, UnsupportedEncodingException {
         MessageDigest messageDigest = MessageDigest.getInstance("MD5");
         BASE64Encoder base64Encoder = new BASE64Encoder();
-        // from byte[] -> String
+
         return base64Encoder.encode(messageDigest.digest(str.getBytes("utf-8")));
     }
 }

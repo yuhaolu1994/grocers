@@ -1,10 +1,7 @@
 package com.imooc.grocers.controller.admin;
 
-import com.github.pagehelper.PageHelper;
-import com.github.pagehelper.PageInfo;
 import com.imooc.grocers.common.*;
 import com.imooc.grocers.model.SellerModel;
-import com.imooc.grocers.request.PageQuery;
 import com.imooc.grocers.request.SellerCreateReq;
 import com.imooc.grocers.service.SellerService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,10 +11,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.servlet.ModelAndView;
 
 import javax.validation.Valid;
-import java.util.List;
 
 @Controller("/admin/seller")
 @RequestMapping("/admin/seller")
@@ -26,34 +21,10 @@ public class SellerController {
     @Autowired
     private SellerService sellerService;
 
-    //商户列表
-    @RequestMapping("/index")
-    @AdminPermission
-    public ModelAndView index(PageQuery pageQuery) {
-        PageHelper.startPage(pageQuery.getPage(), pageQuery.getSize());
-        List<SellerModel> sellerModelList = sellerService.selectAll();
-        PageInfo<SellerModel> sellerModelPageInfo = new PageInfo<>(sellerModelList);
-
-        ModelAndView modelAndView = new ModelAndView("/admin/seller/index.html");
-        modelAndView.addObject("data", sellerModelPageInfo);
-        modelAndView.addObject("CONTROLLER_NAME", "seller");
-        modelAndView.addObject("ACTION_NAME", "index");
-        return modelAndView;
-    }
-
-    @RequestMapping("/createpage")
-    @AdminPermission
-    public ModelAndView createPage() {
-        ModelAndView modelAndView = new ModelAndView("/admin/seller/create.html");
-        modelAndView.addObject("CONTROLLER_NAME", "seller");
-        modelAndView.addObject("ACTION_NAME", "create");
-        return modelAndView;
-    }
-
     @RequestMapping(value = "/create", method = RequestMethod.POST)
     @AdminPermission
-    // 如果加@RequestBody会用Json的方式来解析request否则会用form的方式
-    public String create(@Valid SellerCreateReq sellerCreateReq, BindingResult bindingResult) throws BusinessException {
+    @ResponseBody
+    public CommonResult create(@Valid SellerCreateReq sellerCreateReq, BindingResult bindingResult) throws BusinessException {
         if (bindingResult.hasErrors()) {
             throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR, CommonUtil.processErrorString(bindingResult));
         }
@@ -62,10 +33,10 @@ public class SellerController {
         sellerModel.setName(sellerCreateReq.getName());
         sellerService.create(sellerModel);
 
-        return "redirect:/admin/seller/index";
+        return CommonResult.create(sellerModel);
     }
 
-    @RequestMapping(value = "down", method = RequestMethod.POST)
+    @RequestMapping(value = "/down", method = RequestMethod.POST)
     @AdminPermission
     @ResponseBody
     public CommonResult down(@RequestParam(value = "id") Integer id) throws BusinessException {
@@ -73,7 +44,7 @@ public class SellerController {
         return CommonResult.create(sellerModel);
     }
 
-    @RequestMapping(value = "up", method = RequestMethod.POST)
+    @RequestMapping(value = "/up", method = RequestMethod.POST)
     @AdminPermission
     @ResponseBody
     public CommonResult up(@RequestParam(value = "id") Integer id) throws BusinessException {

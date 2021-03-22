@@ -11,7 +11,7 @@ public class CommonUtil {
         }
         StringBuilder stringBuilder = new StringBuilder();
         for (FieldError fieldError : bindingResult.getFieldErrors()) {
-            stringBuilder.append(fieldError.getDefaultMessage() + ","); // 对应RegisterReq中的@NotBlank message
+            stringBuilder.append(fieldError.getDefaultMessage() + ",");
         }
         return stringBuilder.substring(0, stringBuilder.length() - 1);
     }

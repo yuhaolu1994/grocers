@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.servlet.ModelAndView;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
@@ -34,14 +33,6 @@ public class UserController {
 
     @Autowired
     private UserService userService;
-
-    @RequestMapping("/index")
-    public ModelAndView index() {
-        String userName = "imooc";
-        ModelAndView modelAndView = new ModelAndView("/index.html");
-        modelAndView.addObject("name", userName);
-        return modelAndView;
-    }
 
     @RequestMapping("/get")
     @ResponseBody

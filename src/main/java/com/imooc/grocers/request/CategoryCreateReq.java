@@ -10,13 +10,13 @@ import javax.validation.constraints.NotNull;
 @Setter
 public class CategoryCreateReq {
 
-    @NotBlank(message = "名字不能为空")
+    @NotBlank(message = "empty name found")
     private String name;
 
-    @NotBlank(message = "iconUrl不能为空")
+    @NotBlank(message = "empty iconUrl found")
     private String iconUrl;
 
-    @NotNull(message = "权重不能为空") //Integer不使用NotBlank
+    @NotNull(message = "null weight found")
     private Integer sort;
 
 }

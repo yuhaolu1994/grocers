@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
@@ -30,37 +31,28 @@ public class ShopController {
     @Autowired
     private CategoryService categoryService;
 
-    //推荐服务V1.0
-    @RequestMapping("/recommend")
-    @ResponseBody
-    public CommonResult recommend(@RequestParam(value = "longitude") BigDecimal longitude,
-                                  @RequestParam(value = "latitude") BigDecimal latitude) throws BusinessException {
-        if (Objects.isNull(latitude) || Objects.isNull(longitude)) {
-            throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR);
-        }
-        List<ShopModel> shopModelList = shopService.recommend(latitude, longitude);
-        return CommonResult.create(shopModelList);
-    }
-
-    //搜索服务V1.0
     @RequestMapping("/search")
     @ResponseBody
     public CommonResult search(@RequestParam(value = "longitude") BigDecimal longitude,
                                @RequestParam(value = "latitude") BigDecimal latitude,
                                @RequestParam(value = "keyword") String keyword,
-                               @RequestParam(value = "orderby", required = false) Integer orderby,
+                               @RequestParam(value = "orderBy", required = false) Integer orderBy,
                                @RequestParam(value = "categoryId", required = false) Integer categoryId,
-                               @RequestParam(value = "tags", required = false) String tags) throws BusinessException {
+                               @RequestParam(value = "tags", required = false) String tags) throws BusinessException, IOException {
         if (Objects.isNull(latitude) || Objects.isNull(longitude) || StringUtils.isEmpty(keyword)) {
             throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR);
         }
-        List<ShopModel> shopModelList = shopService.search(latitude, longitude, keyword, orderby, categoryId, tags);
+
+        Map<String, Object> result = shopService.searchES(longitude, latitude, keyword, orderBy, categoryId, tags);
+        List<ShopModel> shopModelList = (List<ShopModel>) result.get("shop");
+        List<Map<String,Object>> tagsAggregation = (List<Map<String, Object>>) result.get("tags");
         List<CategoryModel> categoryModelList = categoryService.selectAll();
-        List<Map<String, Object>> tagsAggregation = shopService.searchGroupByTags(keyword, categoryId, tags);
+
         Map<String, Object> resMap = new HashMap<>();
         resMap.put("shop", shopModelList);
         resMap.put("category", categoryModelList);
         resMap.put("tags", tagsAggregation);
+
         return CommonResult.create(resMap);
     }
 
