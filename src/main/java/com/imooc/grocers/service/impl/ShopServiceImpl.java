@@ -208,6 +208,7 @@ public class ShopServiceImpl implements ShopService {
         jsonRequestObj.getJSONObject("aggs").getJSONObject("group_by_tags").getJSONObject("terms").put("field", "tags");
 
         String reqJson = jsonRequestObj.toJSONString();
+        System.out.println(reqJson);
 
         request.setJsonEntity(reqJson);
         Response response = highLevelClient.getLowLevelClient().performRequest(request);
