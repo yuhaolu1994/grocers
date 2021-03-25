@@ -8,5 +8,11 @@ REST API to search nearby merchants using Spring Boot, MyBatis, MySQL and Elasti
 - backend storage: MySQL(5.6), MyBatis
 - search system: elasticsearch(7.3.0)
 
-## Architecture
+## Solution Diagram
 ![](https://github.com/yuhaolu1994/grocers/blob/merchant-search/src/main/resources/solution_diagram.png)
+
+## System Diagram
+![](https://github.com/yuhaolu1994/grocers/blob/merchant-search/src/main/resources/system_diagram.png)
+
+## Use Cases
+![](https://github.com/yuhaolu1994/grocers/blob/merchant-search/src/main/resources/project_use_case.png)
